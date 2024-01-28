@@ -1,50 +1,65 @@
 package in.adarshr.screenrecorder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
 public class VideoConverter {
-
-    public static void main(String[] args) {
-        Properties prop = loadProperties("app.properties");
-
-        convertMovToMp4(prop);
+    private static final Logger LOGGER = LoggerFactory.getLogger(VideoConverter.class);
+    Properties prop;
+    private String inputPath;
+    private String outputPath;
+    public VideoConverter() {
+        prop = loadProperties("app.properties");
     }
 
-    public static Properties loadProperties(String propFileName) {
+    public  Properties loadProperties(String propFileName) {
         Properties prop = new Properties();
-
         try (InputStream inputStream = Thread.currentThread().getContextClassLoader().getResourceAsStream(propFileName)) {
             prop.load(inputStream);
         } catch (IOException ex) {
-            ex.printStackTrace();
+            LOGGER.error("Failed to create ScreenRecorder window.", ex);
         }
-
         return prop;
     }
 
-    public static void convertMovToMp4(Properties prop) {
+    public  void convertMovToMp4() {
+        String input = getInputPath() != null ? getInputPath() : prop.getProperty("input_path");
+        String output = getOutputPath() != null ? getOutputPath() : prop.getProperty("output_path");
         ProcessBuilder pb = new ProcessBuilder(
                 prop.getProperty("ffmpeg_path"),
                 prop.getProperty("input_file_option"),
-                prop.getProperty("input_path"),
+                input,
                 prop.getProperty("video_codec_option"),
                 prop.getProperty("h264_codec"),
                 prop.getProperty("audio_codec_option"),
                 prop.getProperty("mp2_codec"),
-                prop.getProperty("output_path")
+                output
         );
-
         try {
             Process pc = pb.start();
-            try {
-                pc.waitFor();
-            } catch (InterruptedException ex) {
-                ex.printStackTrace();
-            }
-        } catch (IOException ex) {
-            ex.printStackTrace();
+             pc.waitFor();
+        } catch (IOException | InterruptedException ex) {
+            LOGGER.error("Failed to create ScreenRecorder window.", ex);
         }
+    }
+
+    public String getInputPath() {
+        return inputPath;
+    }
+
+    public void setInputPath(String inputPath) {
+        this.inputPath = inputPath;
+    }
+
+    public String getOutputPath() {
+        return outputPath;
+    }
+
+    public void setOutputPath(String outputPath) {
+        this.outputPath = outputPath;
     }
 }
