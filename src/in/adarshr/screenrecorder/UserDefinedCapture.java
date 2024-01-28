@@ -2,103 +2,109 @@ package in.adarshr.screenrecorder;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
-public class UserDefinedCapture {
+public class UserDefinedCapture extends JFrame {
 
-    private static final Logger LOGGER = Logger.getLogger(UserDefinedCapture.class.getName());
-
-    private JFrame frame;
-    private Point startPoint;
-
+    private Point pointStart = null;
+    private Point pointEnd = null;
+    private Boolean isDisposed = false;
+    private Rectangle rectangle;
+    private String filePath;
+    private String fileExtension;
     public UserDefinedCapture() {
-        initializeUI();
-    }
+        setUndecorated(true);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setAlwaysOnTop(true);
+        setBackground(new Color(0, 0, 0, 1));
 
-    private void initializeUI() {
-        frame = new JFrame();
-        frame.setUndecorated(true);
-        frame.setOpacity(1.0f); // Making the window transparent
-        frame.setExtendedState(JFrame.MAXIMIZED_BOTH); // Fullscreen window
-        frame.getContentPane().setLayout(null);
-
-        JPanel panel = new JPanel();
-        panel.setBackground(new Color(0, true)); // Set panel transparent
-        panel.setBounds(0, 0, frame.getWidth()-100, frame.getHeight()-100);
-        frame.getContentPane().add(panel);
-
-        panel.addMouseListener(new MouseListener() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                startPoint = e.getPoint(); // Get the start point when mouse is pressed
-                System.out.println("mouseClicked");
-            }
-
-            @Override
+        this.addMouseListener(new MouseAdapter() {
             public void mousePressed(MouseEvent e) {
-                startPoint = e.getPoint(); // Get the start point when mouse is pressed
-                System.out.println(e.getPoint());
-                System.out.println("mousePressed");
+                pointStart = e.getPoint();
             }
 
-            @Override
             public void mouseReleased(MouseEvent e) {
-                System.out.println("mouseReleased");
-                System.out.println(e.getPoint());
-                captureArea(startPoint, e.getPoint()); // Capture the area on mouse release
-
-                frame.dispose(); // Close the frame after capturing
-            }
-
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                System.out.println("mouseEntered");
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                System.out.println("mouseExited");
+                setRectangle(pointStart, e.getPoint());
+                capture(getFilePath(), getFileExtension());
+                setDisposed(true);
+                dispose();
             }
         });
-/*        panel.addMouseListener(new MouseAdapter() {
-            public void mousePressed(MouseEvent e) {
-                startPoint = e.getPoint(); // Get the start point when mouse is pressed
-                System.out.println(e.getPoint());
+        this.addMouseMotionListener(new MouseAdapter() {
+            public void mouseDragged(MouseEvent e) {
+                pointEnd = e.getPoint();
+                repaint();
             }
+        });
 
-            public void mouseReleased(MouseEvent e) {
-                System.out.println(e.getPoint());
-                captureArea(startPoint, e.getPoint()); // Capture the area on mouse release
-
-                frame.dispose(); // Close the frame after capturing
+        this.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent e) {
+                for (Window window : Window.getWindows()) {
+                    if ("ScreenRecorder".equals(window.getName())) {
+                        window.setVisible(true);
+                    }
+                }
             }
-        });*/
-
-        frame.setVisible(true);
+        });
     }
 
-    private void captureArea(Point start, Point end) {
-        try {
-            new Robot();
-            int width = end.x - start.x;
-            int height = end.y - start.y;
-            Rectangle area = new Rectangle(start.x, start.y, width, height);
-            //BufferedImage bufferedImage = robot.createScreenCapture(area);
+    @Override
+    public void dispose() {
+        super.dispose();
+    }
 
-            // Here, you can save the image or do something else with it
-            // For example, save it to a file:
-            // ImageIO.write(bufferedImage, "png", new File("captured_area.png"));
-            System.out.println(area);
-        } catch (Exception ex) {
-            LOGGER.log(Level.SEVERE, "Error Log", ex);
+    public Boolean isDisposed(){
+        return isDisposed;
+    }
+
+    public void setDisposed(Boolean disposed){
+        isDisposed = disposed;
+    }
+
+    @Override
+    public void paint(Graphics g) {
+        super.paint(g);
+        if (pointStart != null) {
+            g.setColor(Color.RED);
+            g.drawRect(pointStart.x, pointStart.y,
+                    pointEnd.x - pointStart.x, pointEnd.y - pointStart.y);
         }
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(UserDefinedCapture::new);
+        SwingUtilities.invokeLater(() -> new UserDefinedCapture().setVisible(true));
+    }
+
+    public void setRectangle(Point startPoint, Point endPoint) {
+        rectangle = new Rectangle(startPoint, new Dimension(endPoint.x - startPoint.x, endPoint.y - startPoint.y));
+        System.out.println(rectangle);
+    }
+
+    public  void capture(String fileName, String extension) {
+        try {
+            new ScreenCapture().captureScreen(rectangle, fileName, extension);
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+    }
+
+    public String getFilePath() {
+        return filePath;
+    }
+
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
+
+    public String getFileExtension() {
+        return fileExtension;
+    }
+
+    public void setFileExtension(String fileExtension) {
+        this.fileExtension = fileExtension;
     }
 }
-
