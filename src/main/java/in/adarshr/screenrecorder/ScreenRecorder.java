@@ -9,6 +9,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
@@ -37,7 +38,7 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
                 ScreenRecorder frame = new ScreenRecorder(bundle, properties);
                 frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-                frame.setSize(900, 100);
+                frame.setSize(800, 70);
                 frame.setLocationRelativeTo(null);
                 frame.setResizable(false);
                 frame.setVisible(true);
@@ -49,8 +50,12 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
 
     public static Properties loadProperties(String propFileName) {
         Properties prop = new Properties();
-
-        try (InputStream inputStream = Thread.currentThread().getContextClassLoader().getResourceAsStream(propFileName)) {
+        try  {
+            InputStream inputStream = Thread.currentThread().getContextClassLoader().getResourceAsStream(propFileName);
+            if(inputStream == null){
+                LOGGER.error("Couldn't load the app.properties file through method 1");
+                inputStream = new FileInputStream(propFileName);
+            }
             prop.load(inputStream);
         } catch (IOException ex) {
             LOGGER.error("Failed to load properties file.", ex);
@@ -75,6 +80,7 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
 
         // File options
         fileNameField = new JTextField(20);
+        fileNameField.setText(getFileName(null, properties));
         String[] imageFileTypes = properties.getProperty("imageFileTypes").split(",");
         String[] videoFileTypes = properties.getProperty("videoFileTypes").split(",");
         fileTypeComboBox = new JComboBox<>(mergeArray(imageFileTypes, videoFileTypes));
@@ -86,7 +92,7 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
         selectedScreenshotButton.addActionListener(this);
         screenRecordingButtonStart = new JButton(bundle.getString("button.screenRecordingStart"));
         screenRecordingButtonStart.addActionListener(this);
-        screenRecordingButtonStop = new JButton(bundle.getString("button.screenRecordingStop"));
+        //screenRecordingButtonStop = new JButton(bundle.getString("button.screenRecordingStop"));
 
         mainPanel.add(new JLabel(bundle.getString("label.fileName")));
         mainPanel.add(fileNameField);
@@ -95,7 +101,7 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
         mainPanel.add(fullScreenshotButton);
         mainPanel.add(selectedScreenshotButton);
         mainPanel.add(screenRecordingButtonStart);
-        mainPanel.add(screenRecordingButtonStop);
+        //mainPanel.add(screenRecordingButtonStop);
 
         add(mainPanel, BorderLayout.CENTER);
     }
