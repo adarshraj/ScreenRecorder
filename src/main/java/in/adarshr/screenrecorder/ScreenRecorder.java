@@ -1,5 +1,10 @@
 package in.adarshr.screenrecorder;
 
+import in.adarshr.screenrecorder.convert.VideoConverter;
+import in.adarshr.screenrecorder.feature.FullScreenCapture;
+import in.adarshr.screenrecorder.feature.ScreenRecording;
+import in.adarshr.screenrecorder.feature.UserDefinedCapture;
+import in.adarshr.screenrecorder.util.AppUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,16 +24,20 @@ import java.util.*;
 import java.util.List;
 
 public class ScreenRecorder extends JFrame implements ActionListener, KeyListener {
-
     private static final Logger LOGGER = LoggerFactory.getLogger(ScreenRecorder.class);
-
     static Properties properties;
     static ResourceBundle bundle;
-    ScreenRecording screenRecordingCapture = new ScreenRecording();;
+    JButton fullScreenshotButton;
+    JButton selectedScreenshotButton;
+    JButton screenRecordingButtonStart;
+    JTextField fileNameField;
+    JComboBox<String> fileTypeComboBox;
+    ScreenRecording screenRecordingCapture = new ScreenRecording();
 
     public static void main(String[] args) {
         EventQueue.invokeLater(() -> {
             try {
+                //Load application properties
                 properties = loadProperties("app.properties");
                 // Load resources
                 Locale locale = Locale.of("en");
@@ -64,13 +73,6 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
         return prop;
     }
 
-    JButton fullScreenshotButton;
-    JButton selectedScreenshotButton;
-    JButton screenRecordingButtonStart;
-    JButton screenRecordingButtonStop;
-    JTextField fileNameField;
-    JComboBox<String> fileTypeComboBox;
-
     public ScreenRecorder(ResourceBundle bundle, Properties properties) {
         this.setName("ScreenRecorder");
         setLayout(new BorderLayout());
@@ -83,7 +85,7 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
         fileNameField.setText(getFileName(null, properties));
         String[] imageFileTypes = properties.getProperty("imageFileTypes").split(",");
         String[] videoFileTypes = properties.getProperty("videoFileTypes").split(",");
-        fileTypeComboBox = new JComboBox<>(mergeArray(imageFileTypes, videoFileTypes));
+        fileTypeComboBox = new JComboBox<>(AppUtils.mergeArray(imageFileTypes, videoFileTypes));
 
         // Buttons
         fullScreenshotButton = new JButton(bundle.getString("button.fullScreenshot"));
@@ -92,7 +94,6 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
         selectedScreenshotButton.addActionListener(this);
         screenRecordingButtonStart = new JButton(bundle.getString("button.screenRecordingStart"));
         screenRecordingButtonStart.addActionListener(this);
-        //screenRecordingButtonStop = new JButton(bundle.getString("button.screenRecordingStop"));
 
         mainPanel.add(new JLabel(bundle.getString("label.fileName")));
         mainPanel.add(fileNameField);
@@ -101,28 +102,8 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
         mainPanel.add(fullScreenshotButton);
         mainPanel.add(selectedScreenshotButton);
         mainPanel.add(screenRecordingButtonStart);
-        //mainPanel.add(screenRecordingButtonStop);
 
         add(mainPanel, BorderLayout.CENTER);
-    }
-
-    private String[] mergeArray(String[] imageFileTypes, String[] videoFileTypes) {
-        int a1 = imageFileTypes.length;
-
-        // determines length of secondArray
-        int b1 = videoFileTypes.length;
-
-        // resultant array size
-        int c1 = a1 + b1;
-
-        // create the resultant array
-        String[] c = new String[c1];
-
-        // using the pre-defined function arraycopy
-        System.arraycopy(imageFileTypes, 0, c, 0, a1);
-        System.arraycopy(videoFileTypes, 0, c, a1, b1);
-
-        return c;
     }
 
     private String getFilePath(String fileName, String extension, Properties properties) {
@@ -131,7 +112,6 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
             Path currentRelativePath = Paths.get("");
             filePath = currentRelativePath.toAbsolutePath() + "\\";
         }
-
         return filePath + getFileName(fileName, properties) + getExtension(extension, properties);
     }
 
@@ -159,7 +139,7 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
         if (e.getSource() == fullScreenshotButton) {
             SwingUtilities.invokeLater(() -> {
                 this.setVisible(false);
-                sleep(200L);
+                AppUtils.sleep(200L);
                 new FullScreenCapture().
                         capture(getFilePath(fileNameField.getText(), Objects.requireNonNull(fileTypeComboBox.getSelectedItem()).toString(), properties), fileTypeComboBox.getSelectedItem().toString());
                 this.setVisible(true);
@@ -183,11 +163,7 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
                     if (bundle.getString("button.screenRecordingStart").equals(recordingBtnText)) {
                         screenRecordingButtonStart.setText(bundle.getString("button.screenRecordingStop"));
                         screenRecordingCapture.startRecording();
-                        try {
-                            Thread.sleep(100);
-                        } catch (InterruptedException ex) {
-                            throw new RuntimeException(ex);
-                        }
+                        AppUtils.sleep(100L);
                     } else {
                         screenRecordingCapture.stopRecording();
                         screenRecordingButtonStart.setText(bundle.getString("button.screenRecordingStart"));
@@ -200,14 +176,6 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
                     }
                 }
             });
-        }
-    }
-
-    private static void sleep(Long mills) {
-        try {
-            Thread.sleep(mills);
-        } catch (InterruptedException ex) {
-            throw new RuntimeException(ex);
         }
     }
 

@@ -1,4 +1,4 @@
-package in.adarshr.screenrecorder;
+package in.adarshr.screenrecorder.feature;
 
 import org.monte.media.Format;
 import org.monte.screenrecorder.ScreenRecorder;

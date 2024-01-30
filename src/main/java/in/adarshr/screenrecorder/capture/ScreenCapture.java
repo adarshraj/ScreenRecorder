@@ -1,4 +1,4 @@
-package in.adarshr.screenrecorder;
+package in.adarshr.screenrecorder.capture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,7 +9,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 
-class ScreenCapture {
+public class ScreenCapture {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScreenCapture.class);
     public void captureScreen(Point startPoint, Point endPoint, String fileName, String extension) {
         try {

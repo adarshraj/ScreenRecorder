@@ -1,4 +1,4 @@
-package in.adarshr.screenrecorder;
+package in.adarshr.screenrecorder.convert;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

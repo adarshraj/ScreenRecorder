@@ -1,8 +1,7 @@
-package in.adarshr.screenrecorder;
+package in.adarshr.screenrecorder.feature;
 
 import org.monte.media.Format;
 import org.monte.media.math.Rational;
-import org.monte.screenrecorder.ScreenRecorder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,22 +14,6 @@ public class ScreenRecording {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScreenRecording.class);
     private SpecializedScreenRecorder screenRecorder;
     private String path;
-
-
-    public static void main(String[] args) throws Exception {
-        ScreenRecording test = new ScreenRecording();
-
-        // Start recording
-        test.startRecording();
-
-        // Add delay to allow screen recording to start
-        Thread.sleep(3000);
-
-        // Stop recording
-        test.stopRecording();
-
-        System.exit(0);
-    }
 
     public void startRecording() {
         GraphicsConfiguration gc = GraphicsEnvironment
@@ -50,7 +33,7 @@ public class ScreenRecording {
             this.screenRecorder.setPath(getPath());
             this.screenRecorder.start();
         } catch (IOException | AWTException e) {
-            throw new RuntimeException(e);
+            LOGGER.error("Failed to Screen Recording.", e);
         }
     }
 
@@ -58,7 +41,7 @@ public class ScreenRecording {
         try {
             this.screenRecorder.stop();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            LOGGER.error("Failed to stop Screen Recording.", e);
         }
     }
 

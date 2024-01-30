@@ -1,4 +1,6 @@
-package in.adarshr.screenrecorder;
+package in.adarshr.screenrecorder.feature;
+
+import in.adarshr.screenrecorder.capture.ScreenCapture;
 
 import javax.swing.*;
 import java.awt.*;
@@ -11,7 +13,6 @@ public class UserDefinedCapture extends JFrame {
 
     private Point pointStart = null;
     private Point pointEnd = null;
-    private Boolean isDisposed = false;
     private Rectangle rectangle;
     private String filePath;
     private String fileExtension;
@@ -29,7 +30,6 @@ public class UserDefinedCapture extends JFrame {
             public void mouseReleased(MouseEvent e) {
                 setRectangle(pointStart, e.getPoint());
                 capture(getFilePath(), getFileExtension());
-                setDisposed(true);
                 dispose();
             }
         });
@@ -57,14 +57,6 @@ public class UserDefinedCapture extends JFrame {
         super.dispose();
     }
 
-    public Boolean isDisposed(){
-        return isDisposed;
-    }
-
-    public void setDisposed(Boolean disposed){
-        isDisposed = disposed;
-    }
-
     @Override
     public void paint(Graphics g) {
         super.paint(g);
@@ -75,10 +67,6 @@ public class UserDefinedCapture extends JFrame {
         }
     }
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new UserDefinedCapture().setVisible(true));
-    }
-
     public void setRectangle(Point startPoint, Point endPoint) {
         rectangle = new Rectangle(startPoint, new Dimension(endPoint.x - startPoint.x, endPoint.y - startPoint.y));
         System.out.println(rectangle);
@@ -86,7 +74,8 @@ public class UserDefinedCapture extends JFrame {
 
     public  void capture(String fileName, String extension) {
         try {
-            new ScreenCapture().captureScreen(rectangle, fileName, extension);
+            ScreenCapture screenCapture = new ScreenCapture();
+            screenCapture.captureScreen(rectangle, fileName, extension);
         } catch (Exception ex) {
             System.out.println(ex.getMessage());
         }
