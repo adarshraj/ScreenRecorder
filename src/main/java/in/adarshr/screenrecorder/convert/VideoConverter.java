@@ -13,7 +13,7 @@ public class VideoConverter {
     private String inputPath;
     private String outputPath;
     public VideoConverter() {
-        prop = loadProperties("app.properties");
+        prop = loadProperties("config/app.properties");
     }
 
     public  Properties loadProperties(String propFileName) {

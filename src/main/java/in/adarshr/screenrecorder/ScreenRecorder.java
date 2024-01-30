@@ -38,10 +38,9 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
         EventQueue.invokeLater(() -> {
             try {
                 //Load application properties
-                properties = loadProperties("app.properties");
+                properties = loadProperties("config/app.properties");
                 // Load resources
-                Locale locale = Locale.of("en");
-                bundle = ResourceBundle.getBundle("messages", locale);
+                bundle = ResourceBundle.getBundle("messages", Locale.getDefault());
 
                 // Create frame
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
@@ -68,6 +67,7 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
             prop.load(inputStream);
         } catch (IOException ex) {
             LOGGER.error("Failed to load properties file.", ex);
+            System.exit(1);
         }
 
         return prop;
