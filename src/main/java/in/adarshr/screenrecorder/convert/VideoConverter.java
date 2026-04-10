@@ -3,63 +3,57 @@ package in.adarshr.screenrecorder.convert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
 public class VideoConverter {
     private static final Logger LOGGER = LoggerFactory.getLogger(VideoConverter.class);
-    Properties prop;
-    private String inputPath;
-    private String outputPath;
-    public VideoConverter() {
-        prop = loadProperties("config/app.properties");
+    private final Properties properties;
+
+    public VideoConverter(Properties properties) {
+        this.properties = properties;
     }
 
-    public  Properties loadProperties(String propFileName) {
-        Properties prop = new Properties();
-        try (InputStream inputStream = Thread.currentThread().getContextClassLoader().getResourceAsStream(propFileName)) {
-            prop.load(inputStream);
-        } catch (IOException ex) {
-            LOGGER.error("Failed to create ScreenRecorder window.", ex);
+    /**
+     * Convert {@code input} to H.264/MP2 MP4 at {@code output}. Input and output
+     * must be distinct paths. Returns true on a clean ffmpeg exit.
+     */
+    public boolean convertToMp4(File input, File output) throws IOException, InterruptedException {
+        if (input.equals(output)) {
+            throw new IllegalArgumentException("input and output must differ: " + input);
         }
-        return prop;
-    }
+        String ffmpeg = properties.getProperty("ffmpeg_path");
+        if (ffmpeg == null || ffmpeg.isBlank()) {
+            ffmpeg = "ffmpeg";
+        }
+        String videoCodec = properties.getProperty("h264_codec", "h264");
+        String audioCodec = properties.getProperty("mp2_codec", "mp2");
 
-    public  void convertMovToMp4() {
-        String input = getInputPath() != null ? getInputPath() : prop.getProperty("input_path");
-        String output = getOutputPath() != null ? getOutputPath() : prop.getProperty("output_path");
         ProcessBuilder pb = new ProcessBuilder(
-                prop.getProperty("ffmpeg_path"),
-                prop.getProperty("input_file_option"),
-                input,
-                prop.getProperty("video_codec_option"),
-                prop.getProperty("h264_codec"),
-                prop.getProperty("audio_codec_option"),
-                prop.getProperty("mp2_codec"),
-                output
+                ffmpeg,
+                "-y",
+                "-i", input.getAbsolutePath(),
+                "-vcodec", videoCodec,
+                "-acodec", audioCodec,
+                output.getAbsolutePath()
         );
-        try {
-            Process pc = pb.start();
-             pc.waitFor();
-        } catch (IOException | InterruptedException ex) {
-            LOGGER.error("Failed to create ScreenRecorder window.", ex);
+        pb.redirectErrorStream(true);
+        Process pc = pb.start();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(pc.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                LOGGER.debug("ffmpeg: {}", line);
+            }
         }
-    }
-
-    public String getInputPath() {
-        return inputPath;
-    }
-
-    public void setInputPath(String inputPath) {
-        this.inputPath = inputPath;
-    }
-
-    public String getOutputPath() {
-        return outputPath;
-    }
-
-    public void setOutputPath(String outputPath) {
-        this.outputPath = outputPath;
+        int code = pc.waitFor();
+        if (code != 0) {
+            LOGGER.error("ffmpeg exited with code {} for {} -> {}", code, input, output);
+            return false;
+        }
+        return true;
     }
 }

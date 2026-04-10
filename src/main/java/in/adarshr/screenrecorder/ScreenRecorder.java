@@ -1,9 +1,7 @@
 package in.adarshr.screenrecorder;
 
 import in.adarshr.screenrecorder.convert.VideoConverter;
-import in.adarshr.screenrecorder.feature.FullScreenCapture;
 import in.adarshr.screenrecorder.feature.ScreenRecording;
-import in.adarshr.screenrecorder.feature.UserDefinedCapture;
 import in.adarshr.screenrecorder.util.AppUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,64 +10,66 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
+import java.util.Properties;
+import java.util.ResourceBundle;
 
-public class ScreenRecorder extends JFrame implements ActionListener, KeyListener {
+public class ScreenRecorder extends JFrame implements ActionListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScreenRecorder.class);
     static Properties properties;
     static ResourceBundle bundle;
-    JButton fullScreenshotButton;
-    JButton selectedScreenshotButton;
-    JButton screenRecordingButtonStart;
-    JTextField fileNameField;
-    JComboBox<String> fileTypeComboBox;
-    ScreenRecording screenRecordingCapture = new ScreenRecording();
+
+    private JButton screenRecordingButtonStart;
+    private JTextField fileNameField;
+    private JComboBox<String> fileTypeComboBox;
+    private final ScreenRecording screenRecordingCapture = new ScreenRecording();
+    private File pendingMp4Output;
 
     public static void main(String[] args) {
         EventQueue.invokeLater(() -> {
             try {
-                //Load application properties
                 properties = loadProperties("config/app.properties");
-                // Load resources
                 bundle = ResourceBundle.getBundle("messages", Locale.getDefault());
 
-                // Create frame
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
                 ScreenRecorder frame = new ScreenRecorder(bundle, properties);
                 frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-                frame.setSize(800, 70);
+                frame.setSize(560, 70);
                 frame.setLocationRelativeTo(null);
                 frame.setResizable(false);
                 frame.setVisible(true);
             } catch (Exception e) {
                 LOGGER.error("Failed to create ScreenRecorder window.", e);
+                JOptionPane.showMessageDialog(null,
+                        "Failed to start ScreenRecorder: " + e.getMessage(),
+                        "Startup error", JOptionPane.ERROR_MESSAGE);
             }
         });
     }
 
     public static Properties loadProperties(String propFileName) {
         Properties prop = new Properties();
-        try  {
-            InputStream inputStream = Thread.currentThread().getContextClassLoader().getResourceAsStream(propFileName);
-            if(inputStream == null){
-                LOGGER.error("Couldn't load the app.properties file through method 1");
-                inputStream = new FileInputStream(propFileName);
+        try {
+            InputStream classpathStream = Thread.currentThread().getContextClassLoader().getResourceAsStream(propFileName);
+            try (InputStream in = classpathStream != null ? classpathStream : new FileInputStream(propFileName)) {
+                prop.load(in);
             }
-            prop.load(inputStream);
         } catch (IOException ex) {
-            LOGGER.error("Failed to load properties file.", ex);
+            LOGGER.error("Failed to load properties file: {}", propFileName, ex);
+            JOptionPane.showMessageDialog(null,
+                    "Failed to load configuration: " + propFileName + "\n" + ex.getMessage(),
+                    "Startup error", JOptionPane.ERROR_MESSAGE);
             System.exit(1);
         }
-
         return prop;
     }
 
@@ -80,18 +80,11 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new FlowLayout());
 
-        // File options
         fileNameField = new JTextField(20);
         fileNameField.setText(getFileName(null, properties));
-        String[] imageFileTypes = properties.getProperty("imageFileTypes").split(",");
         String[] videoFileTypes = properties.getProperty("videoFileTypes").split(",");
-        fileTypeComboBox = new JComboBox<>(AppUtils.mergeArray(imageFileTypes, videoFileTypes));
+        fileTypeComboBox = new JComboBox<>(videoFileTypes);
 
-        // Buttons
-        fullScreenshotButton = new JButton(bundle.getString("button.fullScreenshot"));
-        fullScreenshotButton.addActionListener(this);
-        selectedScreenshotButton = new JButton(bundle.getString("button.selectedScreenshot"));
-        selectedScreenshotButton.addActionListener(this);
         screenRecordingButtonStart = new JButton(bundle.getString("button.screenRecordingStart"));
         screenRecordingButtonStart.addActionListener(this);
 
@@ -99,98 +92,129 @@ public class ScreenRecorder extends JFrame implements ActionListener, KeyListene
         mainPanel.add(fileNameField);
         mainPanel.add(new JLabel(bundle.getString("label.fileType")));
         mainPanel.add(fileTypeComboBox);
-        mainPanel.add(fullScreenshotButton);
-        mainPanel.add(selectedScreenshotButton);
         mainPanel.add(screenRecordingButtonStart);
 
         add(mainPanel, BorderLayout.CENTER);
     }
 
-    private String getFilePath(String fileName, String extension, Properties properties) {
-        String filePath = properties.getProperty("filePath");
-        if (filePath == null || filePath.isBlank()) {
-            Path currentRelativePath = Paths.get("");
-            filePath = currentRelativePath.toAbsolutePath() + "\\";
-        }
-        return filePath + getFileName(fileName, properties) + getExtension(extension, properties);
-    }
-
-    private String getExtension(String extension, Properties properties) {
-        if (extension == null || extension.isBlank()) {
-            return "." + properties.getProperty("defaultImageExtension", "jpg");
-        }
-        return "." + extension;
-    }
-
     private String getFileName(String fileName, Properties properties) {
-        String fileNameFormatted;
         if (fileName == null || fileName.isBlank()) {
-            String fileNameAsTime = properties.getProperty("timeFormat", "yyyyMMdd_hhmmssSSS_a");
-            String fileNamePrefix = properties.getProperty("imageFileNamePrefix", "IMG");
+            String fileNameAsTime = properties.getProperty("timeFormat", "yyyyMMdd_HHmmssSSS");
+            String fileNamePrefix = properties.getProperty("fileNamePrefix", "REC");
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat(fileNameAsTime);
-            fileNameFormatted = fileNamePrefix + simpleDateFormat.format(Calendar.getInstance().getTime());
-            return fileNameFormatted;
+            return fileNamePrefix + simpleDateFormat.format(Calendar.getInstance().getTime());
         }
         return fileName;
     }
 
+    private File resolveTargetDir() {
+        String filePath = properties.getProperty("filePath");
+        File dir;
+        if (filePath == null || filePath.isBlank()) {
+            dir = Paths.get("").toAbsolutePath().toFile();
+        } else {
+            dir = new File(filePath);
+        }
+        if (!dir.exists() && !dir.mkdirs()) {
+            LOGGER.warn("Could not create output directory '{}', falling back to working dir", dir);
+            dir = Paths.get("").toAbsolutePath().toFile();
+        }
+        return dir;
+    }
+
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (e.getSource() == fullScreenshotButton) {
-            SwingUtilities.invokeLater(() -> {
-                this.setVisible(false);
-                AppUtils.sleep(200L);
-                new FullScreenCapture().
-                        capture(getFilePath(fileNameField.getText(), Objects.requireNonNull(fileTypeComboBox.getSelectedItem()).toString(), properties), fileTypeComboBox.getSelectedItem().toString());
-                this.setVisible(true);
-            });
-        } else if (e.getSource() == selectedScreenshotButton) {
-            SwingUtilities.invokeLater(() -> {
-                this.setVisible(false);
-                UserDefinedCapture userDefinedCapture = new UserDefinedCapture();
-                userDefinedCapture.setVisible(true);
-                userDefinedCapture.setFilePath(getFilePath(fileNameField.getText(), Objects.requireNonNull(fileTypeComboBox.getSelectedItem()).toString(), properties));
-                userDefinedCapture.setFileExtension(fileTypeComboBox.getSelectedItem().toString());
-            });
-        } else if (e.getSource() == screenRecordingButtonStart) {
-            SwingUtilities.invokeLater(() -> {
-                String videoExt = String.valueOf(fileTypeComboBox.getSelectedItem());
-                List<String> videoFileTypes = Arrays.stream(properties.getProperty("videoFileTypes").split(",")).toList();
-                if(videoFileTypes.contains(videoExt)) {
-                    String recordingBtnText = screenRecordingButtonStart.getText();
-                    String fileName = getFilePath(fileNameField.getText(), Objects.requireNonNull(fileTypeComboBox.getSelectedItem()).toString(), properties);
-                    screenRecordingCapture.setPath(fileName);
-                    if (bundle.getString("button.screenRecordingStart").equals(recordingBtnText)) {
-                        screenRecordingButtonStart.setText(bundle.getString("button.screenRecordingStop"));
-                        screenRecordingCapture.startRecording();
-                        AppUtils.sleep(100L);
-                    } else {
-                        screenRecordingCapture.stopRecording();
-                        screenRecordingButtonStart.setText(bundle.getString("button.screenRecordingStart"));
-                        if("MP4".equals(videoExt)){
-                            VideoConverter videoConverter = new VideoConverter();
-                            videoConverter.setInputPath(fileName);
-                            videoConverter.setOutputPath(fileName);
-                            videoConverter.convertMovToMp4();
-                        }
-                    }
-                }
-            });
+        if (e.getSource() != screenRecordingButtonStart) {
+            return;
+        }
+        String videoExt = String.valueOf(fileTypeComboBox.getSelectedItem());
+        List<String> videoFileTypes = Arrays.stream(properties.getProperty("videoFileTypes").split(",")).toList();
+        if (!videoFileTypes.contains(videoExt)) {
+            return;
+        }
+        boolean isStart = bundle.getString("button.screenRecordingStart").equals(screenRecordingButtonStart.getText());
+        if (isStart) {
+            startRecording(videoExt);
+        } else {
+            stopRecording(videoExt);
         }
     }
 
-    @Override
-    public void keyTyped(KeyEvent e) {
-
+    private void startRecording(String videoExt) {
+        String baseName = getFileName(fileNameField.getText(), properties);
+        File targetDir = resolveTargetDir();
+        File finalOutput = new File(targetDir, baseName + "." + videoExt.toLowerCase(Locale.ROOT));
+        File recordingFile;
+        if ("MP4".equalsIgnoreCase(videoExt)) {
+            recordingFile = new File(targetDir, baseName + ".tmp.avi");
+            pendingMp4Output = finalOutput;
+        } else {
+            recordingFile = finalOutput;
+            pendingMp4Output = null;
+        }
+        screenRecordingCapture.setPath(recordingFile.getAbsolutePath());
+        if (!screenRecordingCapture.startRecording()) {
+            pendingMp4Output = null;
+            JOptionPane.showMessageDialog(this,
+                    "Failed to start screen recording. See logs for details.",
+                    "Recording error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        screenRecordingButtonStart.setText(bundle.getString("button.screenRecordingStop"));
+        fileNameField.setEnabled(false);
+        fileTypeComboBox.setEnabled(false);
+        AppUtils.sleep(100L);
     }
 
-    @Override
-    public void keyPressed(KeyEvent e) {
+    private void stopRecording(String videoExt) {
+        screenRecordingCapture.stopRecording();
+        screenRecordingButtonStart.setText(bundle.getString("button.screenRecordingStart"));
 
+        if ("MP4".equalsIgnoreCase(videoExt) && pendingMp4Output != null) {
+            File temp = new File(screenRecordingCapture.getPath());
+            File finalOutput = pendingMp4Output;
+            pendingMp4Output = null;
+            screenRecordingButtonStart.setEnabled(false);
+            screenRecordingButtonStart.setText(bundle.getString("button.converting"));
+            new Thread(() -> runMp4Conversion(temp, finalOutput), "mp4-convert").start();
+        } else {
+            resetInputs();
+        }
     }
 
-    @Override
-    public void keyReleased(KeyEvent e) {
+    private void runMp4Conversion(File temp, File finalOutput) {
+        VideoConverter converter = new VideoConverter(properties);
+        boolean ok;
+        try {
+            ok = converter.convertToMp4(temp, finalOutput);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            LOGGER.error("MP4 conversion interrupted", ie);
+            ok = false;
+        } catch (Exception ex) {
+            LOGGER.error("MP4 conversion failed", ex);
+            ok = false;
+        }
+        boolean success = ok;
+        SwingUtilities.invokeLater(() -> {
+            screenRecordingButtonStart.setEnabled(true);
+            screenRecordingButtonStart.setText(bundle.getString("button.screenRecordingStart"));
+            resetInputs();
+            if (success) {
+                if (!temp.delete()) {
+                    LOGGER.warn("Could not delete temp recording: {}", temp);
+                }
+            } else {
+                JOptionPane.showMessageDialog(this,
+                        "MP4 conversion failed. The raw recording is at:\n" + temp.getAbsolutePath(),
+                        "Conversion error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+    }
 
+    private void resetInputs() {
+        fileNameField.setEnabled(true);
+        fileTypeComboBox.setEnabled(true);
+        fileNameField.setText(getFileName(null, properties));
     }
 }
